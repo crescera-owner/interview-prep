@@ -15,15 +15,18 @@ COPY packages/api packages/api
 
 RUN pnpm --filter @interview-prep/api run build
 
-# --- runtime stage: only the compiled output + production deps ---
+# `pnpm deploy` packs the built package together with a prod-only
+# node_modules resolved straight from the lockfile that was just verified
+# above — no second `pnpm install` against the registry in the runtime
+# stage, so the production image can't silently drift from what was tested.
+RUN pnpm --filter @interview-prep/api --prod deploy /prod/api
+
+# --- runtime stage: only the deployed, lockfile-pinned output ---
 FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
-RUN corepack enable && corepack prepare pnpm@12.3.4 --activate
-COPY --from=build /app/packages/api/dist ./dist
-COPY --from=build /app/packages/api/package.json ./package.json
-RUN pnpm install --prod --ignore-workspace
+COPY --from=build /prod/api ./
 
 RUN addgroup -S nodegrp && adduser -S nodeuser -G nodegrp
 USER nodeuser
