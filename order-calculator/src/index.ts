@@ -1,27 +1,13 @@
 const DISCOUNT_RATE = 0.1;
 const DISCOUNT_THRESHOLD = 100;
 
-type CategoryItem = {
-    name: string;
-    taxRate: number;
+type Category = "food" | "clothing" | "electronics";
+
+const taxRates : Record<Category, number> = {
+    food: 0.03,
+    clothing: 0.05,
+    electronics: 0.08
 };
-
-class Food implements CategoryItem {
-    readonly name: string = "food";
-    readonly taxRate: number = 0.03;
-}
-
-class Clothing implements CategoryItem {
-    readonly name: string = "clothing";
-    readonly taxRate: number = 0.05;
-};
-
-class Electronics implements CategoryItem {
-    readonly name: string = "electronics";
-    readonly taxRate: number = 0.08;
-}
-
-type Category = Food | Clothing | Electronics
 
 type OrderItem = {
     name: string;
@@ -30,65 +16,82 @@ type OrderItem = {
     category: Category;
 }
 
+const getSubTotal = (orderItems: readonly OrderItem[]) : number => {
+    if (orderItems === null || undefined) return 0;
+
+    return orderItems
+            .map(i => i.quantity * i.unitPrice)
+            .reduce((accumulator, current) => accumulator + current, 0);
+};
+
+const getDiscountRate = (orderSubTotal: number) : number => {
+    return orderSubTotal > DISCOUNT_THRESHOLD ? DISCOUNT_RATE : 0
+};
+
+const getTaxRate = (category: Readonly<Category>) : number => {
+    return taxRates[category];
+};
+
+const getOrderSalesTax = (orderItems: readonly OrderItem[]) : number => {
+    if (orderItems === null || undefined) return 0;
+
+    return orderItems
+            .map(i => i.quantity * i.unitPrice * getTaxRate(i.category))
+            .reduce((accumulator, current) => accumulator + current, 0);
+};
+
+const getOrderTotal = (orderItems: readonly OrderItem[]) : number => {
+    const subTotal: number = getSubTotal(orderItems);
+    
+    const discountRate: number = getDiscountRate(subTotal);
+    const discount: number = subTotal * discountRate;
+
+    const salesTax: number = getOrderSalesTax(orderItems) * (1 - discountRate);
+
+    return subTotal - discount + salesTax;
+};
+
 const hotDog : OrderItem = {
     name: "Hot Dog",
     unitPrice: 3.5,
     quantity: 1,
-    category: new Food
+    category: "food"
 };
 
 const shirt : OrderItem = {
     name: "Shirt",
     unitPrice: 35,
     quantity: 2,
-    category: new Clothing
+    category: "clothing"
 };
 
 const phone : OrderItem = {
     name: "iPhone",
     unitPrice: 900,
     quantity: 1,
-    category: new Electronics
+    category: "electronics"
 };
 
 const orderItems: OrderItem[] = [hotDog, shirt, phone];
 
 const emptyOrder: OrderItem[] = [];
 
-const getOrderSubTotal = (orderItems: readonly OrderItem[]) : number => {
-    return orderItems
-            .map(i => i.quantity * i.unitPrice)
-            .reduce((accumulator, current) => accumulator + current, 0);
-};
+const orderSubTotal: number = getSubTotal(orderItems);
+const orderDiscountRate: number = getDiscountRate(orderSubTotal);
+const orderSalesTax: number = getOrderSalesTax(orderItems, orderDiscountRate);
+const orderTotal: number = getOrderTotal(orderItems);
 
-const getOrderDiscount = (orderSubTotal: number) : number => {
-    return orderSubTotal > DISCOUNT_THRESHOLD ? orderSubTotal * DISCOUNT_RATE : 0
-};
+let orderStr: string = `[Order] sub-total: ${orderSubTotal}, discount rate: ${orderDiscountRate}, `;
+orderStr += `sales tax: ${orderSalesTax}, total: ${orderTotal}`
 
-const getOrderSalesTax = (orderItems: readonly OrderItem[]) : number => {
-    const orderSubTotal = getOrderSubTotal(orderItems);
-    const discountedRate = orderSubTotal > DISCOUNT_THRESHOLD ? 0.9 : 1;
+console.log(orderStr);
 
-    return orderItems
-            .map(i => i.quantity * i.unitPrice * discountedRate * i.category.taxRate)
-            .reduce((accumulator, current) => accumulator + current, 0);
-}
+const emptyOrderSubTotal: number = getSubTotal(emptyOrder);
+const emptyOrderDiscountRate: number = getDiscountRate(emptyOrderSubTotal);
+const emptyOrderSalesTax: number = getOrderSalesTax(emptyOrder, emptyOrderDiscountRate);
+const emptyOrderTotal: number = getOrderTotal(emptyOrder);
 
-const getOrderTotal = (orderItems: readonly OrderItem[]) : number => {
-    const orderSubTotal = getOrderSubTotal(orderItems);
-    const orderDiscount = getOrderDiscount(orderSubTotal);
-    const orderSalesTax = getOrderSalesTax(orderItems);
+let emptyOrderStr = `[Empty] sub-total: ${emptyOrderSubTotal}, discount rate: ${emptyOrderDiscountRate}, `;
+emptyOrderStr += `sales tax: ${emptyOrderSalesTax}, total: ${emptyOrderTotal}`;
 
-    return orderSubTotal - orderDiscount + orderSalesTax;
-}
-
-const orderItemsSubTotal = getOrderSubTotal(orderItems);
-const orderItemsDiscount = getOrderDiscount(orderItemsSubTotal);
-const orderItemsTotal = getOrderTotal(orderItems);
-
-const emptyOrderSubTotal = getOrderSubTotal(emptyOrder);
-const emptyOrderDiscount = getOrderDiscount(emptyOrderSubTotal);
-const emptyOrderTotal = getOrderTotal(emptyOrder);
-
-console.log(`Order sub-total: ${orderItemsSubTotal}, order discount: ${orderItemsDiscount}, order total: ${orderItemsTotal}`);
-console.log(`Empty order sub-total: ${emptyOrderSubTotal}, empty order discount: ${emptyOrderDiscount}, empty order total: ${emptyOrderTotal}`);
+console.log(emptyOrderStr);
